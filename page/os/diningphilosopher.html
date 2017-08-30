@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>diningphilosopher</title>
+<link rel="stylesheet" href="https://stackedit.io/res-min/themes/base.css" />
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body><div class="container"><h1 id="哲学家进餐问题java实现">哲学家进餐问题（Java实现）</h1>
+
+<p><div class="toc">
+<ul>
+<li><a href="#哲学家进餐问题java实现">哲学家进餐问题（Java实现）</a><ul>
+<li><a href="#问题描述">问题描述</a></li>
+<li><a href="#问题分析">问题分析</a></li>
+<li><a href="#约定">约定</a></li>
+<li><a href="#哲学家类">哲学家类</a></li>
+<li><a href="#解决思路">解决思路</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</p>
+
+<hr>
+
+<h2 id="问题描述">问题描述</h2>
+
+<blockquote>
+  <p><em>哲学家就餐问题可以这样表述，假设有五位哲学家围坐在一张圆形餐桌旁，做以下两件事情之一：吃饭，或者思考。吃东西的时候，他们就停止思考，思考的时候也停止吃东西。餐桌中间有一大碗意大利面，每两个哲学家之间有一只餐叉。因为用一只餐叉很难吃到意大利面，所以假设哲学家必须用两只餐叉吃东西。他们只能使用自己左右手边的那两只餐叉。哲学家就餐问题有时也用米饭和筷子而不是意大利面和餐叉来描述，因为很明显，吃米饭必须用两根筷子。</em> <em>（引用维基百科）</em></p>
+</blockquote>
+
+<p>如图所示</p>
+
+<p><img src="https://lh3.googleusercontent.com/-9jlg1_MKjkg/WaZpLJzVW2I/AAAAAAAAAAM/tRma1fe3ieY_lOfzUFJaYhP_kcjE47BfgCLcBGAs/s500/An_illustration_of_the_dining_philosophers_problem.png" alt="哲学家问题图示" title="An_illustration_of_the_dining_philosophers_problem.png"></p>
+
+<hr>
+
+<h2 id="问题分析">问题分析</h2>
+
+<p>哲学家从来不交谈，这就很危险，可能产生死锁，每个哲学家都拿着左手的餐叉，永远都在等右边的餐叉（或者相反）。</p>
+
+<p>即使没有死锁，也有可能发生资源耗尽。例如，假设规定当哲学家等待另一只餐叉超过五分钟后就放下自己手里的那一只餐叉，并且再等五分钟后进行下一次尝试。这个策略消除了死锁（系统总会进入到下一个状态），但仍然有可能发生“活锁”。如果五位哲学家在完全相同的时刻进入餐厅，并同时拿起左边的餐叉，那么这些哲学家就会等待五分钟，同时放下手中的餐叉，再等五分钟，又同时拿起这些餐叉。</p>
+
+<p>在实际的计算机问题中，缺乏餐叉可以类比为缺乏共享资源。一种常用的计算机技术是资源加锁，用来保证在某个时刻，资源只能被一个程序或一段代码访问。当一个程序想要使用的资源已经被另一个程序锁定，它就等待资源解锁。当多个程序涉及到加锁的资源时，在某些情况下就有可能发生死锁。例如，某个程序需要访问两个文件，当两个这样的程序各锁了一个文件，那它们都在等待对方解锁另一个文件，而这永远不会发生。</p>
+
+<hr>
+
+<h2 id="约定">约定</h2>
+
+<p>本文将叉子替换为筷子，更便于理解。</p>
+
+<hr>
+
+<h2 id="哲学家类">哲学家类</h2>
+
+<blockquote>
+  <p>首先创建一个类，用以描述哲学家的思考（think）和吃面（eat）的行为。</p>
+</blockquote>
+
+<pre class="prettyprint"><code class="language-java hljs ">
+<span class="hljs-keyword">package</span> cn.rknight.study.diningphiosophers;
+
+<span class="hljs-keyword">import</span> java.text.MessageFormat;
+
+<span class="hljs-keyword">import</span> <span class="hljs-keyword">static</span> java.lang.Thread.sleep;
+
+<span class="hljs-javadoc">/**
+ * Author: shanhq96@gmail.com
+ * DateTime: 2017/8/30 11:00
+ * Description:Philosopher has eat() and think()
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Philosopher</span> {</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> id;<span class="hljs-comment">//哲学家编号</span>
+
+    <span class="hljs-keyword">public</span> <span class="hljs-title">Philosopher</span>(<span class="hljs-keyword">int</span> id) {
+        <span class="hljs-keyword">this</span>.id = id;
+    }
+
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">int</span> <span class="hljs-title">getId</span>() {
+        <span class="hljs-keyword">return</span> id;
+    }
+
+    <span class="hljs-javadoc">/**
+     * 哲学家进餐行为
+     */</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">eat</span>() {
+        <span class="hljs-keyword">try</span> {
+            System.out.println(MessageFormat.format(<span class="hljs-string">"Philosopher {0} start eating"</span>, <span class="hljs-keyword">this</span>.id));
+            sleep(<span class="hljs-number">500</span>);<span class="hljs-comment">//假设哲学家进餐需要0.5s的时间</span>
+            System.out.println(MessageFormat.format(<span class="hljs-string">"Philosopher {0} has ate"</span>, <span class="hljs-keyword">this</span>.id));
+        } <span class="hljs-keyword">catch</span> (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    <span class="hljs-javadoc">/**
+     * 哲学家思考行为
+     */</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">think</span>() {
+        System.out.println(MessageFormat.format(<span class="hljs-string">"Philosopher {0} start thinking"</span>, <span class="hljs-keyword">this</span>.id));
+    }
+}
+</code></pre>
+
+<hr>
+
+<h2 id="解决思路">解决思路</h2>
+
+<blockquote>
+  <p>1.保证当哲学家能同时获取到两根叉子的时候才拿叉子，否则就不拿。 <br>
+  2.奇数编号哲学家先拿左手边叉子，偶数号哲学家先拿右手边叉子。</p>
+</blockquote>
+
+<p>1.保证当哲学家能同时获取到两根叉子的时候才拿叉子，否则就不拿。</p>
+
+<pre class="prettyprint"><code class="language-java hljs ">
+<span class="hljs-keyword">package</span> cn.rknight.study.diningphiosophers;
+
+<span class="hljs-keyword">import</span> org.junit.Test;
+
+<span class="hljs-keyword">import</span> java.util.concurrent.Semaphore;
+
+<span class="hljs-javadoc">/**
+ * Author: shanhq96@gmail.com
+ * DateTime: 2017/8/30 11:09
+ * Description:保证一个哲学家只有同时拿起两个叉子（筷子）才去拿.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PhilosopherMain</span> {</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> EAT_TIMES = <span class="hljs-number">100</span>;
+    <span class="hljs-keyword">private</span> Semaphore mutex = <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>);
+    <span class="hljs-keyword">private</span> Semaphore[] chopsticks = {<span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>)};
+    <span class="hljs-keyword">private</span> Semaphore treadMutex = <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">0</span>);<span class="hljs-comment">//通过threadMutex可以保证5位哲学家"公平"的同时开始进行思考或吃饭的活动</span>
+
+    <span class="hljs-annotation">@Test</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">test</span>() <span class="hljs-keyword">throws</span> InterruptedException {
+        Thread[] threads = <span class="hljs-keyword">new</span> Thread[<span class="hljs-number">5</span>];
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">5</span>; i++) {
+            threads[i] = <span class="hljs-keyword">new</span> Thread(<span class="hljs-keyword">new</span> PhilosopherThread(i));
+            threads[i].start();
+        }
+        <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+            <span class="hljs-comment">//当threadMutex信号量中的等待队列的长度达到5的时候，意味着所有的哲学家已经就位，可以开始思考或吃面了。</span>
+            <span class="hljs-keyword">if</span> (treadMutex.getQueueLength() == <span class="hljs-number">5</span>) {
+                treadMutex.release(<span class="hljs-number">5</span>);<span class="hljs-comment">//释放5个threadMutex，以便让5个哲学家线程可以继续运行。</span>
+                <span class="hljs-keyword">break</span>;<span class="hljs-comment">//退出循环</span>
+            }
+        }
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">5</span>; i++) {
+            threads[i].join();<span class="hljs-comment">//使主线程等待所有子线程结束再退出。</span>
+        }
+    }
+
+    class PhilosopherThread implements Runnable {
+
+        <span class="hljs-keyword">final</span> Philosopher philosopher;
+
+        <span class="hljs-keyword">public</span> <span class="hljs-title">PhilosopherThread</span>(<span class="hljs-keyword">int</span> philosopherId) {
+            <span class="hljs-keyword">this</span>.philosopher = <span class="hljs-keyword">new</span> Philosopher(philosopherId);<span class="hljs-comment">//为哲学家赋编号</span>
+        }
+
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">run</span>() {
+            <span class="hljs-keyword">try</span> {
+                treadMutex.acquire();<span class="hljs-comment">//可以让当前线程因为获取不到treadMutex的资源而进入等待状态。</span>
+                <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> id = <span class="hljs-keyword">this</span>.philosopher.getId();<span class="hljs-comment">// 当前专家的编号</span>
+                <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; EAT_TIMES; i++) {
+                    <span class="hljs-keyword">this</span>.philosopher.think();
+                    mutex.acquire();<span class="hljs-comment">//通过mutex信号量可以让哲学家拿左右筷子的行为变为原子操作。</span>
+                    <span class="hljs-comment">//哲学家获取左右的筷子</span>
+                    chopsticks[(id + <span class="hljs-number">1</span>) % <span class="hljs-number">5</span>].acquire();
+                    chopsticks[id].acquire();
+                    mutex.release();<span class="hljs-comment">//拿到筷子之后释放mutex的锁，允许其他哲学家去拿筷子。</span>
+                    <span class="hljs-keyword">this</span>.philosopher.eat();
+                    <span class="hljs-comment">//哲学家放下左右的筷子</span>
+                    chopsticks[(id + <span class="hljs-number">1</span>) % <span class="hljs-number">5</span>].release();
+                    chopsticks[id].release();
+                }
+            } <span class="hljs-keyword">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}
+</code></pre>
+
+<blockquote>
+  <p><strong>运行结果</strong></p>
+  
+  <p>Philosopher 1 start thinking <br>
+  Philosopher 1 start eating <br>
+  Philosopher 4 start thinking <br>
+  Philosopher 4 start eating <br>
+  Philosopher 0 start thinking <br>
+  Philosopher 3 start thinking <br>
+  Philosopher 2 start thinking <br>
+  Philosopher 1 has ate <br>
+  Philosopher 1 start thinking <br>
+  Philosopher 4 has ate <br>
+  Philosopher 0 start eating <br>
+  Philosopher 3 start eating <br>
+  …… <br>
+  <small>（程序正常运行结束，并未发生死锁，且没有哲学家饿死）</small></p>
+</blockquote>
+
+<hr>
+
+<p>2.奇数编号哲学家先拿左手边叉子，偶数号哲学家先拿右手边叉子。</p>
+
+<pre class="prettyprint"><code class="language-java hljs ">
+<span class="hljs-keyword">package</span> cn.rknight.study.diningphiosophers;
+
+<span class="hljs-keyword">import</span> org.junit.Test;
+
+<span class="hljs-keyword">import</span> java.text.MessageFormat;
+<span class="hljs-keyword">import</span> java.util.concurrent.Semaphore;
+
+<span class="hljs-javadoc">/**
+ * Author: shanhq96@gmail.com
+ * DateTime: 2017/8/30 14:52
+ * Description:奇数哲学家先拿左边的筷子，偶数哲学家先拿右边的筷子.
+ */</span>
+<span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PhilosopherMain2</span> {</span>
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> EAT_TIMES = <span class="hljs-number">100</span>;
+    <span class="hljs-keyword">private</span> Semaphore[] chopsticks = {<span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>), <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">1</span>)};
+    <span class="hljs-keyword">private</span> Semaphore treadMutex = <span class="hljs-keyword">new</span> Semaphore(<span class="hljs-number">0</span>);<span class="hljs-comment">//通过threadMutex可以保证5位哲学家"公平"的同时开始进行思考或吃饭的活动</span>
+
+    <span class="hljs-annotation">@Test</span>
+    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">test</span>() <span class="hljs-keyword">throws</span> InterruptedException {
+        Thread[] threads = <span class="hljs-keyword">new</span> Thread[<span class="hljs-number">5</span>];
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">5</span>; i++) {
+            threads[i] = <span class="hljs-keyword">new</span> Thread(<span class="hljs-keyword">new</span> PhilosopherThread(i));
+            threads[i].start();
+        }
+        <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+            <span class="hljs-comment">//当threadMutex信号量中的等待队列的长度达到5的时候，意味着所有的哲学家已经就位，可以开始思考或吃面了。</span>
+            <span class="hljs-keyword">if</span> (treadMutex.getQueueLength() == <span class="hljs-number">5</span>) {
+                treadMutex.release(<span class="hljs-number">5</span>);<span class="hljs-comment">//释放5个threadMutex，以便让5个哲学家线程可以继续运行。</span>
+                <span class="hljs-keyword">break</span>;<span class="hljs-comment">//退出循环</span>
+            }
+        }
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">5</span>; i++) {
+            threads[i].join();<span class="hljs-comment">//使主线程等待所有子线程结束再退出。</span>
+        }
+    }
+
+    class PhilosopherThread implements Runnable {
+
+        <span class="hljs-keyword">final</span> Philosopher philosopher;
+
+        <span class="hljs-keyword">public</span> <span class="hljs-title">PhilosopherThread</span>(<span class="hljs-keyword">int</span> philosopherId) {
+            <span class="hljs-keyword">this</span>.philosopher = <span class="hljs-keyword">new</span> Philosopher(philosopherId);
+        }
+
+        <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">run</span>() {
+            <span class="hljs-keyword">try</span> {
+                treadMutex.acquire();
+                <span class="hljs-keyword">final</span> <span class="hljs-keyword">int</span> id = <span class="hljs-keyword">this</span>.philosopher.getId();<span class="hljs-comment">// 当前专家的编号</span>
+                <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>; i &lt; EAT_TIMES; i++) {
+                    <span class="hljs-keyword">this</span>.philosopher.think();
+                    <span class="hljs-keyword">if</span> (id % <span class="hljs-number">2</span> != <span class="hljs-number">0</span>) {
+                        <span class="hljs-comment">//奇数专家先拿左手边筷子，再拿右手边筷子</span>
+                        chopsticks[id].acquire();
+                        chopsticks[(id + <span class="hljs-number">1</span>) % <span class="hljs-number">5</span>].acquire();
+                    } <span class="hljs-keyword">else</span> {
+                        <span class="hljs-comment">//偶数专家先拿右手边筷子，再拿左手边筷子</span>
+                        chopsticks[(id + <span class="hljs-number">1</span>) % <span class="hljs-number">5</span>].acquire();
+                        chopsticks[id].acquire();
+                    }
+                    <span class="hljs-keyword">this</span>.philosopher.eat();
+                    chopsticks[id].release();
+                    chopsticks[(id + <span class="hljs-number">1</span>) % <span class="hljs-number">5</span>].release();
+                }
+            } <span class="hljs-keyword">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+}
+</code></pre>
+
+<blockquote>
+  <p><strong>运行结果</strong></p>
+  
+  <p>Philosopher 0 start thinking <br>
+  Philosopher 0 start eating <br>
+  Philosopher 4 start thinking <br>
+  Philosopher 1 start thinking <br>
+  Philosopher 2 start thinking <br>
+  Philosopher 2 start eating <br>
+  Philosopher 3 start thinking <br>
+  Philosopher 0 has ate <br>
+  Philosopher 2 has ate <br>
+  Philosopher 2 start thinking <br>
+  Philosopher 1 start eating <br>
+  Philosopher 4 start eating <br>
+  Philosopher 0 start thinking <br>
+  Philosopher 4 has ate <br>
+  …… <br>
+  <small>（程序正常运行结束，并未发生死锁，且没有哲学家饿死）</small></p>
+</blockquote>
+
+<hr></div></body>
+</html>
